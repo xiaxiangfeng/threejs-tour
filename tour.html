@@ -1,0 +1,151 @@
+<head>
+  <style>
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    #canvas {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      position: fixed;
+      position: relative;
+    }
+  </style>
+</head>
+
+<body></body>
+<script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.139.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.139.0/examples/jsm/"
+    }
+  }
+</script>
+
+<canvas id="canvas"></canvas>
+
+<script type="module">
+  import * as THREE from "three";
+  import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+  import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+  import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+  import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+  let t = 0;
+  let clock = new THREE.Clock();
+  let deltaTime = 0.0;
+  let startingTime = 10.67830000000448;
+  let time = startingTime;
+
+  let canvas = document.getElementById("canvas");
+  let gl = canvas.getContext("webgl2");
+
+  let renderer = new THREE.WebGLRenderer({
+    canvas: canvas,
+    antialias: true,
+    context: gl,
+    preserveDrawingBuffer: true,
+  });
+
+  let resolution = new THREE.Vector3(
+    window.innerWidth,
+    window.innerHeight,
+    1.0
+  );
+
+  let scene = new THREE.Scene();
+
+  const geometry = new THREE.BoxGeometry(10, 10, 10);
+  const material = new THREE.MeshStandardMaterial({
+    color: "red",
+    toneMapped: false,
+    emissive: "red",
+    emissiveIntensity: 40,
+  });
+  const cube = new THREE.Mesh(geometry, material);
+  scene.add(cube);
+
+  let camera = new THREE.PerspectiveCamera(
+    70,
+    window.innerWidth / window.innerHeight,
+    1,
+    1000
+  );
+  camera.position.z = 400;
+  camera.position.x = 0;
+  camera.position.y = 100;
+
+  const target = new THREE.WebGLRenderTarget(
+    window.innerWidth,
+    window.innerHeight,
+    {
+      type: THREE.HalfFloatType,
+      format: THREE.RGBAFormat,
+      encoding: THREE.sRGBEncoding,
+    }
+  );
+  target.samples = 8;
+
+  let controls = new OrbitControls(camera, renderer.domElement);
+  controls.update();
+  controls.enablePan = true;
+  controls.enableDamping = true;
+
+  const gridHelper = new THREE.GridHelper(400, 40, 0x0000ff, 0x808080);
+  gridHelper.position.y = 0;
+  gridHelper.position.x = 0;
+  scene.add(gridHelper);
+
+  renderer.render(scene, camera);
+
+  canvas.style.left = `${(window.innerWidth - resolution.x) / 2}px`;
+  canvas.style.top = `${(window.innerHeight - resolution.y) / 2}px`;
+
+  renderer.setSize(resolution.x, resolution.y, false);
+  renderer.outputEncoding = THREE.sRGBEncoding;
+
+  // 创建一个三次贝塞尔曲线
+  const curve = new THREE.CubicBezierCurve3(
+    new THREE.Vector3(-100, 0, 0), // 起点
+    new THREE.Vector3(-50, 0, 150), // 第一个控制点
+    new THREE.Vector3(200, 0, 150), // 第二个控制点
+    new THREE.Vector3(100, 0, 0) // 终点
+  );
+
+  const points = curve.getPoints(50);
+  const geometryLine = new THREE.BufferGeometry().setFromPoints(points);
+
+  // 使用线条材料创建路径可视化
+  const materialLine = new THREE.LineBasicMaterial({ color: 0xff0000 });
+  const curveObject = new THREE.Line(geometryLine, materialLine);
+  scene.add(curveObject);
+
+  render();
+  
+  function render() {
+    requestAnimationFrame(render);
+    controls.update();
+    renderer.render(scene, camera);
+
+    // 更新t值，使其在0到1之间变化
+    t += 0.001;
+    // if (t > 1) t = 0;
+    if (t > 1) return;
+    // 更新相机位置和朝向
+    const point = curve.getPoint(t);
+    
+    camera.position.set(point.x, 1, point.z);
+    const tangent = curve.getTangent(t);
+    console.log(tangent);
+    const l = tangent.add(point);
+    controls.target.set(l.x, 1, l.z);
+  }
+</script>
